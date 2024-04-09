@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
-import urllib.request
-import os
 import argparse
-from bs4 import BeautifulSoup
-from mimetypes import guess_all_extensions
+import hashlib
+import os
 import shutil
-import random
+import urllib.request
 import time
+
+from bs4 import BeautifulSoup
 from datetime import datetime
+from mimetypes import guess_all_extensions
 
 extrachars = [' ', '-', '_', '.']
 MAX_PATH = 260
@@ -18,7 +19,6 @@ delay = 0.1
 parser = argparse.ArgumentParser(description="test")
 parser.add_argument("url", help="URL to the blogspot blog")
 parser.add_argument("destination", help="Where to put all the downloaded files")
-parser.add_argument("--resume", default=False, action='store_true', help="Resume download, do not download existing files")
 args = parser.parse_args()
 
 if(not os.path.exists(args.destination)):
@@ -57,8 +57,7 @@ while(True):
 			source = image.parent['href']
 #			source = image['src']
 			title = source.split("/")[-1]
-
-			title = "".join(c for c in title if c.isalnum() or c in extrachars).rstrip()
+			title = hashlib.md5(title.encode()).hexdigest() if len(title) > 50 else "".join(c for c in title if c.isalnum() or c in extrachars).rstrip()
 
 			if(source[0] == '/'):
 				source = "https:" + source
@@ -66,10 +65,17 @@ while(True):
 			extension = os.path.splitext(source)[1]
 
 			try:
-				print('↓ {}/{}'.format(images.index(image)+1, len(images)), '§ {}/{}'.format(posts.index(post)+1, len(posts)), '· ¶ {}'.format(source))
+				print('↓ {}/{}'.format(images.index(image)+1, len(images)), '§ {}/{}'.format(posts.index(post)+1, len(posts)), '· ¶ {} > {}'.format(source, fullfilepath))
+				
 				# Ignore existing files if we are resuming
-				if(os.path.isfile(fullfilepath) and args.resume):
+				if(
+					os.path.isfile(fullfilepath)
+					or os.path.isfile(fullfilepath + '.jpg')
+					or os.path.isfile(fullfilepath + '.jpeg')
+					or os.path.isfile(fullfilepath + '.png')
+				 ):
 					continue
+
 				# Download
 				imageresponse = urllib.request.urlopen(source, None)
 				# Break in betweeb
@@ -84,17 +90,8 @@ while(True):
 				guess = guess_all_extensions(contenttype, True)
 				fullfilepath += guess[0]
 
-			if(len(fullfilepath) > MAX_PATH):
-				difference = len(fullfilepath) - MAX_PATH
-				title = title[-(len(title)-difference)]
-				fullfilepath = os.path.abspath(folder + title + guess[0])
-
 			try:
 
-				file = None
-				if(os.path.isfile(fullfilepath)):
-					print("Downloaded an image but had to rename it (it probably already existed)")
-					fullfilepath = os.path.abspath(folder + ''.join(random.choice(alphanum) for i in range (10)) + guess[0])
 				file = open(fullfilepath, 'wb')
 				shutil.copyfileobj(imageresponse, file)
 				downloads += 1

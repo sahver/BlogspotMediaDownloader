@@ -18,6 +18,7 @@ delay = 0.1
 parser = argparse.ArgumentParser(description="test")
 parser.add_argument("url", help="URL to the blogspot blog")
 parser.add_argument("destination", help="Where to put all the downloaded files")
+parser.add_argument("--resume", default=False, action='store_true', help="Resume download, do not download existing files")
 args = parser.parse_args()
 
 if(not os.path.exists(args.destination)):
@@ -66,6 +67,9 @@ while(True):
 
 			try:
 				print('↓ {}/{}'.format(images.index(image)+1, len(images)), '§ {}/{}'.format(posts.index(post)+1, len(posts)), '· ¶ {}'.format(source))
+				# Ignore existing files if we are resuming
+				if(os.path.isfile(fullfilepath) and args.resume):
+					continue
 				# Download
 				imageresponse = urllib.request.urlopen(source, None)
 				# Break in betweeb

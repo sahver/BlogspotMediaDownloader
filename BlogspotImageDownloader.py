@@ -12,7 +12,7 @@ from datetime import datetime
 from mimetypes import guess_all_extensions
 
 extrachars = [' ', '-', '_', '.']
-MAX_PATH = 260
+MAX_PATH = 200
 alphanum = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234567789"
 delay = 0.1
 
@@ -57,16 +57,19 @@ while(True):
 			source = image.parent['href']
 #			source = image['src']
 			title = source.split("/")[-1]
-			title = hashlib.md5(title.encode()).hexdigest() if len(title) > 50 else "".join(c for c in title if c.isalnum() or c in extrachars).rstrip()
+			title = "".join(c for c in title if c.isalnum() or c in extrachars).rstrip()
 
 			if(source[0] == '/'):
 				source = "https:" + source
-			fullfilepath = os.path.abspath(folder + title)
+
 			extension = os.path.splitext(source)[1]
 
+			if len(os.path.abspath(folder + title)) > MAX_PATH:
+				title = hashlib.md5(title.encode()).hexdigest() + extension
+
+			fullfilepath = os.path.abspath(folder + title)
+
 			try:
-				print('↓ {}/{}'.format(images.index(image)+1, len(images)), '§ {}/{}'.format(posts.index(post)+1, len(posts)), '· ¶ {} > {}'.format(source, fullfilepath))
-				
 				# Ignore existing files if we are resuming
 				if(
 					os.path.isfile(fullfilepath)
@@ -77,6 +80,7 @@ while(True):
 					continue
 
 				# Download
+				print('↓ {}/{}'.format(images.index(image)+1, len(images)), '§ {}/{}'.format(posts.index(post)+1, len(posts)), '· ¶ {} > {}'.format(source, fullfilepath))
 				imageresponse = urllib.request.urlopen(source, None)
 				# Break in betweeb
 				time.sleep(delay)
@@ -84,14 +88,14 @@ while(True):
 				print("Encountered a 404 image")
 				continue
 
-			guess = ['']
+			# If extension is missing then guess or use default
 			if(extension == ''):
+				guess = ['']
 				contenttype = imageresponse.info()["Content-Type"]
 				guess = guess_all_extensions(contenttype, True)
-				fullfilepath += guess[0]
+				fullfilepath += guess[0] if len(guess[0]) else '.jpg'
 
 			try:
-
 				file = open(fullfilepath, 'wb')
 				shutil.copyfileobj(imageresponse, file)
 				downloads += 1

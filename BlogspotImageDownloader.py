@@ -47,26 +47,36 @@ while(True):
 
 		# Create folder with the datetime of the post
 		timestamp = datetime.fromisoformat( post.find('abbr', {'class' : 'published'})['title'] )
-		folder = args.destination + timestamp.strftime("%Y-%m-%d--%H%M/")
+		folder = args.destination + timestamp.strftime("%Y-%m-%d_%H%M/")
 		os.makedirs(os.path.dirname(folder), exist_ok=True)
 		
 		# Loop through images
 		body = post.find("div", {"class" : "post-body"})
 		images = body.findAll("img")
 		for image in images:
+			# Image Href
 			source = image.parent['href']
 #			source = image['src']
+
+			# Filename
 			title = source.split("/")[-1]
 			title = "".join(c for c in title if c.isalnum() or c in extrachars).rstrip()
 
+			# Absolute URL
 			if(source[0] == '/'):
 				source = "https:" + source
 
+			# Type
 			extension = os.path.splitext(source)[1]
 
+			# Shorten if needed
 			if len(os.path.abspath(folder + title)) > MAX_PATH:
 				title = hashlib.md5(title.encode()).hexdigest() + extension
 
+			# Order
+			title = '{:03d}_{}'.format(images.index(image)+1, title)
+
+			# Full path
 			fullfilepath = os.path.abspath(folder + title)
 
 			try:

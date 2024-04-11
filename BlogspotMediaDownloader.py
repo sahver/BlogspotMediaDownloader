@@ -10,6 +10,7 @@ import time
 
 from bs4 import BeautifulSoup
 from datetime import datetime
+from http.client import IncompleteRead
 from mimetypes import guess_all_extensions
 from pytube import extract, YouTube
 
@@ -34,14 +35,20 @@ while(True):
 
 	print('')
 	print('Scraping {}'.format(url))
-	print('')
 
-	request = urllib.request.Request(url)
-	requestData = urllib.request.urlopen(request, None)
-	encoding = requestData.headers.get_content_charset()
-	str_requestData = requestData.read().decode(encoding)
-	soup = BeautifulSoup(str_requestData, 'html.parser')
-	posts = soup.findAll("div", {"class" : "post-outer"})
+	try:
+		request = urllib.request.Request(url)
+		requestData = urllib.request.urlopen(request, None)
+		encoding = requestData.headers.get_content_charset()
+		str_requestData = requestData.read().decode(encoding)
+		soup = BeautifulSoup(str_requestData, 'html.parser')
+		posts = soup.findAll("div", {"class" : "post-outer"})
+	except IncompleteRead:
+		print('*** Error reading the page, retrying.. ***')
+		time.sleep(5)
+		continue
+
+	print('')
 
 	#
 	# Loop through posts
@@ -51,7 +58,7 @@ while(True):
 
 		# Create folder with the datetime of the post
 		timestamp = datetime.fromisoformat( post.find('abbr', {'class' : 'published'})['title'] )
-		folder = args.destination + timestamp.strftime("%Y-%m-%d_%H%M/")
+		folder = args.destination + timestamp.strftime("%Y-%m-%d__%H%M/")
 		os.makedirs(os.path.dirname(folder), exist_ok=True)
 
 		#
@@ -173,3 +180,6 @@ while(True):
 #
 # All done.
 #
+
+print('Done.')
+print('')

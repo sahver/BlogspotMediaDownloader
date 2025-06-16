@@ -58,15 +58,36 @@ while(True):
 
 		# Create folder with the datetime of the post
 		timestamp = datetime.fromisoformat( post.find('abbr', {'class' : 'published'})['title'] )
-		folder = args.destination + timestamp.strftime("%Y-%m-%d__%H%M/")
+		# Convert time to system timezone
+		timestamp = timestamp.astimezone()
+		# Folder structure yyyy/mm/dd/hhmm
+		folder = args.destination + timestamp.strftime("%Y/%m/%d/%H%M/")
 		os.makedirs(os.path.dirname(folder), exist_ok=True)
+
+		post_body = post.find("div", {"class" : "post-body"})
+		post_media = post_body.findAll(['img', 'iframe']) + post_body.findAll('a', {'href' : re.compile(r'.*youtube.com/watch.*') })
+
+		#
+		# Save body text
+		#
+
+		with open(os.path.abspath(folder + '000.txt'), 'w') as f:
+			f.write('\n')
+			f.write(timestamp.strftime("%Y-%m-%d %H:%M"))
+			f.write('\n')
+			f.write('----------------')
+			f.write('\n')
+			f.write('\n')
+			f.write(
+				post_body.get_text(
+					separator='\n\n',
+					strip=True
+				)
+			)
 
 		#
 		# Loop through media
 		#  
-
-		post_body = post.find("div", {"class" : "post-body"})
-		post_media = post_body.findAll(['img', 'iframe']) + post_body.findAll('a', {'href' : re.compile(r'.*youtube.com/watch.*') })
 
 		for media in post_media:
 

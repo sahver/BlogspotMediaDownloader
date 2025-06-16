@@ -42,7 +42,7 @@ while(True):
 		encoding = requestData.headers.get_content_charset()
 		str_requestData = requestData.read().decode(encoding)
 		soup = BeautifulSoup(str_requestData, 'html.parser')
-		posts = soup.findAll("div", {"class" : "post-outer"})
+		posts = soup.find_all("div", {"class" : "post-outer"})
 	except IncompleteRead:
 		print('*** Error reading the page, retrying.. ***')
 		time.sleep(5)
@@ -65,7 +65,7 @@ while(True):
 		os.makedirs(os.path.dirname(folder), exist_ok=True)
 
 		post_body = post.find("div", {"class" : "post-body"})
-		post_media = post_body.findAll(['img', 'iframe']) + post_body.findAll('a', {'href' : re.compile(r'.*youtube.com/watch.*') })
+		post_media = post_body.find_all(['img', 'iframe']) + post_body.find_all('a', {'href' : re.compile(r'.*youtube.com/watch.*') })
 
 		#
 		# Save body text

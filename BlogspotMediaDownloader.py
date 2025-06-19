@@ -15,8 +15,18 @@ from http.client import IncompleteRead
 from mimetypes import guess_all_extensions
 from yt_dlp import YoutubeDL
 
+class DownloadFailedException(Exception):
+	
+	def __init__(self, message):
+		self.message = message
+		super().__init__(self.message)
+
+	def __str__(self):
+		return f'{self.message}'
+
 extrachars = [' ', '-', '_', '.']
 MAX_PATH = 200
+TIMEOUT = 10
 
 parser = argparse.ArgumentParser(description="test")
 parser.add_argument("url", help="URL to the blogspot blog")
@@ -157,12 +167,11 @@ try:
 
 								# Download
 								print('↓ {}/{}'.format(post_media.index(media)+1, len(post_media)), '§ {}/{}'.format(posts.index(post)+1, len(posts)), '· ¶ {} > {}'.format(source, fullfilepath))
-								imageresponse = urllib.request.urlopen(source, None)
-							except:
-								print()
-								print('*** Unable to download the image ***')
-								print()
-								continue
+								imageresponse = urllib.request.urlopen(source, None, timeout=TIMEOUT)
+
+							except: 
+								raise DownloadFailedException(f'Unable to download the image: {source}')
+
 
 							# If extension is missing then guess or use default
 							if(extension == ''):
@@ -176,8 +185,7 @@ try:
 								shutil.copyfileobj(imageresponse, file)
 								downloads += 1
 							except Exception as e:
-								print("Failed to write to file")
-								continue
+								raise DownloadFailedException(f'Unable to write image to disk: {source} > {fullfilepath}')
 
 						#
 						# YouTube videos
@@ -198,24 +206,20 @@ try:
 
 								# Download
 								print('↓ {}/{}'.format(post_media.index(media)+1, len(post_media)), '§ {}/{}'.format(posts.index(post)+1, len(posts)), '· ¶ {} > {}'.format(source, fullfilepath))
-	#							yt = YouTube(source).streams
-	#							yt = yt.filter(progressive=True, file_extension='mp4')
-	#							yt = yt.order_by('resolution').desc()
-	#							yt.first().download(output_path=os.path.abspath(folder), filename=title, skip_existing=False)
+
 								ydl_opts = {
 									'outtmpl': os.path.abspath(folder + title),
 									'format': 'bestvideo+bestaudio/best',
 									'merge_output_format': 'mp4',
-									'quiet': True
+									'quiet': True,
+									'socket_timeout': TIMEOUT
 								}
 
 								with YoutubeDL(ydl_opts) as ydl:
 									ydl.download([source])
+
 							except:
-								print()
-								print('*** Unable to download Youtube video ***')
-								print()
-								continue
+								raise DownloadFailedException(f'Unable to download Youtube video: {source}')
 
 		#
 		# Next..
@@ -234,6 +238,14 @@ try:
 	print('Done.')
 	print('')
 
+except DownloadFailedException as e:
+	print()
+	print()
+	print(f'{repr(e)}'.strip().replace('\n', ''))
+	print()
+	print('Download failed, shutting down. Bye.')
+	print()
+	exit()
 
 except KeyboardInterrupt:
 	print()

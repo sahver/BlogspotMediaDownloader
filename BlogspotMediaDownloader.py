@@ -3,7 +3,6 @@
 import argparse
 import dateparser
 import hashlib
-import os
 import re
 import shutil
 import urllib.request
@@ -13,6 +12,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from http.client import IncompleteRead
 from mimetypes import guess_all_extensions
+from pathlib import Path
 from yt_dlp import YoutubeDL
 
 class DownloadFailedException(Exception):
@@ -33,7 +33,7 @@ parser.add_argument("url", help="URL to the blogspot blog")
 parser.add_argument("destination", help="Where to put all the downloaded files")
 args = parser.parse_args()
 
-if(not os.path.exists(args.destination)):
+if(not Path(args.destination).exists()):
 	print("Destination path does not exist")
 	exit()
 elif(args.destination[-1] != '/'):
@@ -55,7 +55,6 @@ try:
 			encoding = requestData.headers.get_content_charset()
 			str_requestData = requestData.read().decode(encoding)
 			soup = BeautifulSoup(str_requestData, 'html.parser')
-	#		posts = soup.find_all("div", {"class" : "post-outer"})
 			dates = soup.find_all("div", {"class" : "date-outer"})
 		except IncompleteRead:
 			print('*** Error reading the page, retrying.. ***')
@@ -86,8 +85,8 @@ try:
 				print()
 
 				# Folder structure yyyy/mm/dd/hhmm
-				folder = args.destination + (today.strftime(f'%Y/%m/%d/{index}/') if len(posts) > 1 else today.strftime(f'%Y/%m/%d/'))
-				os.makedirs(os.path.dirname(folder), exist_ok=True)
+				folder = Path( args.destination + (today.strftime(f'%Y/%m/%d/{index}/') if len(posts) > 1 else today.strftime(f'%Y/%m/%d/')) )
+				folder.mkdir(parents=True, exist_ok=True)
 
 				post_body = post.find("div", {"class" : "post-body"})
 				post_media = post_body.find_all(['img', 'iframe']) + post_body.find_all('a', {'href' : re.compile(r'.*youtube.com/watch.*') })
@@ -96,7 +95,7 @@ try:
 				# Save body text
 				#
 
-				with open(os.path.abspath(folder + '000.txt'), 'w') as f:
+				with open(folder / '000.txt', 'w') as f:
 					f.write('\n')
 					f.write(today.strftime('%Y-%m-%d'))
 					f.write('\n')
@@ -119,29 +118,24 @@ try:
 					# URL
 					source = media.parent['href'] if media.name == 'img' else ( media['src'] if media.name == 'iframe' else media['href'] )
 
-					# Absolute URL
-					if(source[0] == '/'):
-						source = "https:" + source
-
 					# Filename
-	#				title = os.path.splitext( os.path.basename(source) )[0] if media.name == 'img' else extract.video_id(source)
-					title = os.path.splitext( os.path.basename(source) )[0]
+					title = Path(source).stem
 
 					# Type
-					extension = os.path.splitext(source)[1] if media.name == 'img' else '.mp4'
+					extension = Path(source).suffix if media.name == 'img' else '.mp4'
 
 					# Allowed chars
 					title = "".join(c for c in title if c.isalnum() or c in extrachars).rstrip() + extension
 
 					# Shorten if needed
-					if len(os.path.abspath(folder + title)) > MAX_PATH:
+					if len((folder / title).as_posix()) > MAX_PATH:
 						title = hashlib.md5(title.encode()).hexdigest() + extension
 
 					# Order
 					title = '{:03d}_{}'.format(post_media.index(media)+1, title)
 
 					# Full path
-					fullfilepath = os.path.abspath(folder + title)
+					fullfilepath = folder / title
 
 					#
 					# Download
@@ -158,10 +152,10 @@ try:
 							try:
 								# Ignore existing files if we are resuming
 								if(
-									( os.path.isfile(fullfilepath) and os.path.getsize(fullfilepath) > 0 )
-									or ( os.path.isfile(fullfilepath + '.jpg') and os.path.getsize(fullfilepath + '.jpg') > 0 )
-									or ( os.path.isfile(fullfilepath + '.jpeg') and os.path.getsize(fullfilepath + '.jpeg') > 0 )
-									or ( os.path.isfile(fullfilepath + '.png') and os.path.getsize(fullfilepath + '.png') > 0 )
+									( fullfilepath.is_file() and fullfilepath.stat().st_size > 0 )
+									or ( fullfilepath.with_suffix('.jpg').is_file() and fullfilepath.with_suffix('.jpg').stat().st_size > 0 )
+									or ( fullfilepath.with_suffix('.jpeg').is_file() and fullfilepath.with_suffix('.jpeg').stat().st_size > 0 )
+									or ( fullfilepath.with_suffix('.png').is_file() and fullfilepath.with_suffix('.png').stat().st_size > 0 )
 								):
 									continue
 
@@ -196,11 +190,11 @@ try:
 							try:
 								# Ignore existing files if we are resuming
 								if(
-									( os.path.isfile(fullfilepath) and os.path.getsize(fullfilepath) > 0 )
-									or ( os.path.isfile(fullfilepath + '.avi') and os.path.getsize(fullfilepath + '.avi') > 0 )
-									or ( os.path.isfile(fullfilepath + '.mp4') and os.path.getsize(fullfilepath + '.mp4') > 0 )
-									or ( os.path.isfile(fullfilepath + '.mov') and os.path.getsize(fullfilepath + '.mp4') > 0 )
-									or ( os.path.isfile(fullfilepath + '.webm') and os.path.getsize(fullfilepath + '.mp4') > 0 )
+									( fullfilepath.is_file() and fullfilepath.stat().st_size > 0 )
+									or ( fullfilepath.with_suffix('.avi').is_file() and fullfilepath.with_suffix('.avi').stat().st_size > 0 )
+									or ( fullfilepath.with_suffix('.mp4').is_file() and fullfilepath.with_suffix('.mp4').stat().st_size > 0 )
+									or ( fullfilepath.with_suffix('.mov').is_file() and fullfilepath.with_suffix('.mov').stat().st_size > 0 )
+									or ( fullfilepath.with_suffix('.webm').is_file() and fullfilepath.with_suffix('.webm').stat().st_size > 0 )
 								):
 									continue
 
@@ -208,11 +202,11 @@ try:
 								print('↓ {}/{}'.format(post_media.index(media)+1, len(post_media)), '§ {}/{}'.format(posts.index(post)+1, len(posts)), '· ¶ {} > {}'.format(source, fullfilepath))
 
 								ydl_opts = {
-									'outtmpl': os.path.abspath(folder + title),
-									'format': 'bestvideo+bestaudio/best',
-									'merge_output_format': 'mp4',
-									'quiet': True,
-									'socket_timeout': TIMEOUT
+									'outtmpl'				: folder / title,
+									'format'				: 'bestvideo+bestaudio/best',
+									'merge_output_format'	: 'mp4',
+									'quiet'					: True,
+									'socket_timeout'		: TIMEOUT
 								}
 
 								with YoutubeDL(ydl_opts) as ydl:
